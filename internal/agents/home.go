@@ -233,3 +233,66 @@ func (m *Manager) AuthCommand(args ...string) *exec.Cmd {
 	cmd.Env = m.environ(m.homeEnv(DriverJSON)...)
 	return cmd
 }
+
+// projectDirs are the project folders of a working folder in the agents' config folder (by its path and its
+// resolved path; nil when the sessions use the user's config folder).
+func (m *Manager) projectDirs(cwd string) []string {
+	home := m.ClaudeHome()
+	if home == "" {
+		return nil
+	}
+	var dirs []string
+	for _, d := range []string{cwd, mustReal(cwd)} {
+		if n, whole := projectName(d); whole {
+			p := filepath.Join(home, "projects", n)
+			if len(dirs) == 0 || dirs[0] != p {
+				dirs = append(dirs, p)
+			}
+		}
+	}
+	return dirs
+}
+
+// pruneProjects removes the project folders of session folders that are gone: a one-off session's folders went,
+// its project folder stayed (before remove took it along). Each one left behind was another deny rule of every
+// session started later (homeDenyPaths), until the arguments of claude passed the system's limit ("argument list
+// too long"). Only the names of folders inside the agents folder are looked at; a project of a folder there now
+// (or below it) stays.
+func (m *Manager) pruneProjects() {
+	home := m.ClaudeHome()
+	if home == "" {
+		return
+	}
+	es, err := os.ReadDir(filepath.Join(home, "projects"))
+	if err != nil {
+		return
+	}
+	var roots, keep []string
+	for _, r := range []string{m.Root, mustReal(m.Root)} {
+		if n, whole := projectName(r); whole {
+			roots = append(roots, n+"-")
+		}
+	}
+	if sessions, err := os.ReadDir(m.Root); err == nil {
+		for _, s := range sessions {
+			for _, r := range []string{m.Root, mustReal(m.Root)} {
+				if n, whole := projectName(filepath.Join(r, s.Name())); whole {
+					keep = append(keep, n)
+				}
+			}
+		}
+	}
+	for _, e := range es {
+		n := e.Name()
+		under := false
+		for _, r := range roots {
+			under = under || strings.HasPrefix(n, r)
+		}
+		for _, k := range keep {
+			under = under && n != k && !strings.HasPrefix(n, k+"-")
+		}
+		if under {
+			_ = os.RemoveAll(filepath.Join(home, "projects", n))
+		}
+	}
+}

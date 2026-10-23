@@ -179,6 +179,7 @@ func (m *Manager) init() {
 			m.Command = "claude"
 		}
 		m.Config = m.Config.withDefaults()
+		m.pruneProjects()
 	}
 }
 
@@ -696,6 +697,9 @@ func (m *Manager) remove(s *Session, oneOff bool) {
 	if oneOff {
 		_ = os.RemoveAll(s.ctl)
 		if s.opts.Cwd == "" {
+			for _, p := range m.projectDirs(s.cwd) { // its transcript: else a deny rule of every later session
+				_ = os.RemoveAll(p)
+			}
 			_ = os.RemoveAll(s.cwd)
 		}
 	}

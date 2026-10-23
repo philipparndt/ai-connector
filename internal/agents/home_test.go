@@ -36,7 +36,8 @@ func TestClaudeHome(t *testing.T) {
 		t.Fatalf("project name %q", own)
 	}
 	other, _ := projectName(filepath.Join(m.Root, sessionID("bob", "board-1")))
-	for _, d := range []string{filepath.Join(home, "projects", own, "sid-1", "tool-results"), filepath.Join(home, "projects", other),
+	for _, d := range []string{filepath.Join(m.Root, sessionID("bob", "board-1")), // a session there now (pruneProjects)
+		filepath.Join(home, "projects", own, "sid-1", "tool-results"), filepath.Join(home, "projects", other),
 		filepath.Join(home, "backups")} {
 		os.MkdirAll(d, 0o755)
 	}
@@ -191,5 +192,43 @@ func TestAuthCommand(t *testing.T) {
 	}
 	if v, ok := env["CLAUDE_SECURESTORAGE_CONFIG_DIR"]; !ok || v != "" {
 		t.Fatalf("auth environment %s", b)
+	}
+}
+
+// The project folders of session folders that are gone are removed when the manager starts (each was a deny rule
+// of every later session, until claude's arguments passed the system's limit); those of folders there now, and
+// those of folders outside the agents folder, stay. A one-off session takes its project folder along.
+func TestPruneProjects(t *testing.T) {
+	unsetEnv(t, "CLAUDE_CONFIG_DIR")
+	root := t.TempDir()
+	projects := filepath.Join(root, ".claude-home", "projects")
+	name := func(dir string) string { n, _ := projectName(dir); return n }
+	os.MkdirAll(filepath.Join(root, "o-live"), 0o755)
+	keep := []string{name(filepath.Join(root, "o-live")), name(filepath.Join(root, "o-live", "sub")), name("/Users/someone/dev/app")}
+	gone := []string{name(filepath.Join(root, "o-gone")), name(filepath.Join(root, "o-gone2"))}
+	for _, n := range append(append([]string(nil), keep...), gone...) {
+		os.MkdirAll(filepath.Join(projects, n, "sid"), 0o755)
+	}
+	m := &Manager{Root: root}
+	m.init()
+	for _, n := range keep {
+		if _, err := os.Stat(filepath.Join(projects, n)); err != nil {
+			t.Errorf("%s removed", n)
+		}
+	}
+	for _, n := range gone {
+		if _, err := os.Stat(filepath.Join(projects, n)); err == nil {
+			t.Errorf("%s kept", n)
+		}
+	}
+
+	s := &Session{id: "o-live", cwd: filepath.Join(root, "o-live"), ctl: filepath.Join(root, ".ctl", "o-live")}
+	m.sessions[s.id] = s
+	m.remove(s, true)
+	if _, err := os.Stat(filepath.Join(projects, keep[0])); err == nil {
+		t.Errorf("a one-off session's project folder stayed")
+	}
+	if _, err := os.Stat(filepath.Join(projects, keep[2])); err != nil {
+		t.Errorf("a folder outside the agents folder went")
 	}
 }
