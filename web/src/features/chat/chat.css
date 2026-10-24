@@ -77,7 +77,7 @@
   color: var(--muted-foreground);
   cursor: pointer;
 }
-.md-code-bar button:hover { background: var(--accent); color: var(--foreground); }
+.md-code-bar button:hover { background: var(--sunken); color: var(--foreground); }
 .md-code pre { margin: 0; padding: 0.8rem 0.9rem; overflow-x: auto; }
 .md-code code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

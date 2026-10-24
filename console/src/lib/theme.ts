@@ -1,28 +1,18 @@
 import { useSyncExternalStore } from "react";
 
-/** Light or dark, as the system is (no manual switch, like the house's other web UIs). index.html sets it before
- * the first paint; this follows changes live: html.dark and html[data-theme] both. */
+/** Light or dark, as the system is (no manual switch, like the house's other web UIs). The prepaint script of
+ * @mqtt-home/ui (vite.config.ts) sets html.dark and html[data-theme] before the first paint and follows the system
+ * live (always dark in the Wall Display panel); this reads it for the code that needs it in JS. */
 export type Theme = "light" | "dark";
 
-const dark = matchMedia("(prefers-color-scheme: dark)");
-const listeners = new Set<() => void>();
-// in the Wall Display panel (html[data-embed=wall-display]) always dark: it draws a dark gradient behind us
-const isDark = () => document.documentElement.dataset.embed === "wall-display" || dark.matches;
+const isDark = () => document.documentElement.classList.contains("dark");
 
-function apply() {
-  document.documentElement.classList.toggle("dark", isDark());
-  document.documentElement.dataset.theme = isDark() ? "dark" : "light";
-  listeners.forEach((l) => l());
-}
-
-export function initTheme() {
-  apply();
-  dark.addEventListener("change", apply);
+function subscribe(onChange: () => void) {
+  const o = new MutationObserver(onChange);
+  o.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  return () => o.disconnect();
 }
 
 export function useTheme(): Theme {
-  return useSyncExternalStore(
-    (l) => (listeners.add(l), () => listeners.delete(l)),
-    () => (isDark() ? "dark" : "light"),
-  );
+  return useSyncExternalStore(subscribe, () => (isDark() ? "dark" : "light"));
 }

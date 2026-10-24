@@ -1,84 +1,31 @@
 /*
- * Home OS design (v2), as in the house's other web UIs (home-portal's index.css): the tokens for light and dark,
- * shadcn's colour names mapped onto them, and the few component classes the apps use. Dark mode: html.dark and
- * html[data-theme=dark] are both set (index.html before first paint, main.tsx follows the system live).
- * The same file is in web/src and console/src.
+ * Home OS design (v2): the tokens, the common components and the Wall Display embed mode come from @mqtt-home/ui
+ * (index.css imports its tailwind.css). What stays here is this app's own part: shadcn's colour names mapped onto the
+ * tokens, the solid button's ink gradient, the chart colours, the shadcn primitives' surfaces and where this app's
+ * look differs from the package's components. The same file is in web/src and console/src.
  */
 
+/* the one accent under a name of its own: shadcn's --accent is a hover background (see @theme below) */
 :root {
-  color-scheme: light;
-  --canvas: #F4F6F8;
-  --surface: #FFFFFF;
-  --surface-2: #F8FAFB;
-  --sunken: #EDF0F3;
-  --line: rgba(15, 23, 42, .075);
-  --line-2: rgba(15, 23, 42, .13);
-  --highlight: inset 0 1px 0 rgba(255, 255, 255, 1), inset 0 -1px 0 rgba(14, 32, 52, .025);
-  --ink: #0B1220;
-  --ink-2: #384152;
-  --ink-3: #687083;
-  --ink-4: #9AA2B1;
-  /* the one accent: lagoon teal (shadcn's own --accent is a hover background, see @theme below) */
-  --teal: #0E9F8E;
-  --teal-ink: #06786B;
-  --teal-soft: rgba(14, 159, 142, .10);
+  --teal: var(--accent);
+  --teal-ink: var(--accent-ink);
+  --teal-soft: var(--accent-soft);
   --teal-fg: #FFFFFF;
-  --focus: rgba(14, 159, 142, .35);
-  /* status: colour only ever means state */
-  --ok: #0B9B6A; --ok-soft: rgba(11, 155, 106, .10);
-  --warn: #C77700; --warn-soft: rgba(232, 145, 10, .12);
-  --alert: #E0264B; --alert-soft: rgba(224, 38, 75, .09);
-  --info: #1C7ED6; --info-soft: rgba(28, 126, 214, .10);
-  --idle: #7A8496; --idle-soft: rgba(122, 132, 150, .12);
-  /* depth: ambient + key light, tinted toward navy */
-  --elevation-1: 0 1px 2px rgba(14, 32, 52, .06), 0 2px 6px -1px rgba(14, 32, 52, .06);
-  --elevation-2: 0 1px 2px rgba(14, 32, 52, .05), 0 6px 14px -6px rgba(14, 40, 60, .08), 0 16px 32px -16px rgba(10, 60, 80, .12);
-  --elevation-3: 0 2px 4px rgba(14, 32, 52, .05), 0 10px 22px -10px rgba(14, 40, 60, .10), 0 28px 56px -24px rgba(10, 60, 80, .18);
-  --surface-gradient: linear-gradient(180deg, #FFFFFF 0%, #FBFCFD 100%);
-  --surface-gradient-raised: linear-gradient(180deg, #FFFFFF 0%, #F5F8FA 100%);
   --ink-gradient: linear-gradient(180deg, #1A2333 0%, #0B1220 100%);
   --ink-gradient-fg: #FFFFFF;
-  --press: inset 0 2px 5px rgba(14, 32, 52, .12), inset 0 0 0 1px rgba(14, 32, 52, .06);
-  --inset-track: inset 0 1px 2px rgba(14, 32, 52, .10);
-  --ico-hl: rgba(255, 255, 255, .75);
-  --canvas-mesh: radial-gradient(1100px 620px at 8% -8%, rgba(14, 159, 142, .05), transparent 62%),
-    radial-gradient(900px 640px at 100% 4%, rgba(124, 92, 250, .035), transparent 60%);
-  --r-sm: 10px; --r-md: 14px; --r-lg: 20px;
-  --ease: cubic-bezier(.2, .8, .2, 1);
-  --t-fast: 120ms; --t-base: 200ms;
   --radius: 0.75rem;
   --chart-1: #0E9F8E; --chart-2: #1D9BF0; --chart-3: #7C5CFA; --chart-4: #F2A10C; --chart-5: #64748B;
 }
 
 :root.dark, :root[data-theme="dark"] {
-  color-scheme: dark;
-  --canvas: #090B0F; --surface: #111419; --surface-2: #151920; --sunken: #0C0F13;
-  --line: rgba(255, 255, 255, .065); --line-2: rgba(255, 255, 255, .12);
-  --highlight: inset 0 1px 0 rgba(255, 255, 255, .065), inset 0 0 0 1px rgba(255, 255, 255, .012);
-  --ink: #ECEFF4; --ink-2: #BAC2CE; --ink-3: #848D9C; --ink-4: #5B6372;
-  --teal: #2DD4BF; --teal-ink: #5EEAD4; --teal-soft: rgba(45, 212, 191, .12); --teal-fg: #04201C; --focus: rgba(45, 212, 191, .4);
-  --ok: #34D399; --ok-soft: rgba(52, 211, 153, .12);
-  --warn: #FBBF24; --warn-soft: rgba(251, 191, 36, .12);
-  --alert: #FB7185; --alert-soft: rgba(251, 113, 133, .12);
-  --info: #60A5FA; --info-soft: rgba(96, 165, 250, .12);
-  --idle: #8B95A7; --idle-soft: rgba(139, 149, 167, .12);
-  /* dark: depth from lighter surfaces and faint rims; shadows only anchor */
-  --elevation-1: 0 1px 2px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .015);
-  --elevation-2: 0 2px 4px rgba(0, 0, 0, .5), 0 14px 30px -12px rgba(0, 0, 0, .75);
-  --elevation-3: 0 4px 10px rgba(0, 0, 0, .5), 0 26px 52px -18px rgba(0, 0, 0, .85), 0 0 0 1px rgba(255, 255, 255, .025);
-  --surface-gradient: linear-gradient(180deg, #161B22 0%, #11151B 100%);
-  --surface-gradient-raised: linear-gradient(180deg, #1D232C 0%, #171C24 100%);
+  --teal-fg: #04201C;
   --ink-gradient: linear-gradient(180deg, #F4F6F9 0%, #E2E7ED 100%);
   --ink-gradient-fg: #0B1220;
-  --press: inset 0 2px 6px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .03);
-  --inset-track: inset 0 1px 3px rgba(0, 0, 0, .55);
-  --ico-hl: rgba(255, 255, 255, .09);
-  --canvas-mesh: radial-gradient(1100px 620px at 8% -8%, rgba(45, 212, 191, .04), transparent 62%),
-    radial-gradient(900px 640px at 100% 4%, rgba(167, 139, 250, .03), transparent 60%);
   --chart-1: #2DD4BF; --chart-2: #38BDF8; --chart-3: #A78BFA; --chart-4: #FBBF24; --chart-5: #94A3B8;
 }
 
-/* shadcn's own variables, for the code that names them directly (sonner, a few inline styles) */
+/* shadcn's own variables, for the code that names them directly (sonner, a few inline styles). Not --accent: that
+   is the package's accent colour; the hover background is var(--sunken). */
 :root {
   --background: var(--canvas);
   --foreground: var(--ink);
@@ -92,7 +39,6 @@
   --secondary-foreground: var(--ink);
   --muted: var(--sunken);
   --muted-foreground: var(--ink-3);
-  --accent: var(--sunken);
   --accent-foreground: var(--ink);
   --destructive: var(--alert);
   --border: var(--line-2);
@@ -100,30 +46,12 @@
   --ring: var(--teal);
 }
 
-/* shadcn's names on the Home tokens. "primary" is the accent (selected, active, links); the solid default button
-   gets the ink treatment in components/ui/button.tsx. */
+/* shadcn's names on the Home tokens, where they differ from the package's. "primary" is the accent (selected, active,
+   links); the solid default button gets the ink treatment in components/ui/button.tsx. */
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Geist Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
-  --color-background: var(--canvas);
-  --color-foreground: var(--ink);
-  --color-card: var(--surface);
-  --color-card-foreground: var(--ink);
-  --color-popover: var(--surface);
-  --color-popover-foreground: var(--ink);
   --color-primary: var(--teal);
   --color-primary-foreground: var(--teal-fg);
-  --color-secondary: var(--sunken);
-  --color-secondary-foreground: var(--ink);
-  --color-muted: var(--sunken);
-  --color-muted-foreground: var(--ink-3);
-  --color-accent: var(--sunken);
-  --color-accent-foreground: var(--ink);
-  --color-destructive: var(--alert);
-  --color-border: var(--line-2);
-  --color-input: var(--line-2);
-  --color-ring: var(--teal);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -156,28 +84,17 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Side gutter that also clears the notch in landscape on an iPhone. */
-@utility px-safe {
-  padding-left: max(1rem, env(safe-area-inset-left));
-  padding-right: max(1rem, env(safe-area-inset-right));
-}
-
 @layer base {
   * {
-    border-color: var(--line);
     outline-color: color-mix(in oklab, var(--teal) 50%, transparent);
   }
-  html {
-    -webkit-text-size-adjust: 100%;
-    -webkit-tap-highlight-color: transparent;
-    font-family: var(--font-sans);
-  }
+  /* the browser's 16px and normal wrapping (the package's page default is 15px, wrapping anywhere) */
   body {
-    background: var(--canvas-mesh), var(--canvas);
-    background-attachment: fixed;
-    color: var(--ink);
-    font-feature-settings: "ss01", "cv11";
-    -webkit-font-smoothing: antialiased;
+    font-size: 1rem;
+    overflow-wrap: normal;
+  }
+  button:disabled, [role="button"]:disabled {
+    cursor: default;
   }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
@@ -188,57 +105,17 @@
 }
 
 @layer components {
-  /* header */
-  .top-bar {
-    background: color-mix(in oklab, var(--canvas) 78%, transparent);
-    backdrop-filter: saturate(1.6) blur(18px); -webkit-backdrop-filter: saturate(1.6) blur(18px);
-    border-bottom: 1px solid var(--line);
-    box-shadow: 0 6px 20px -18px rgba(14, 32, 52, .2);
-  }
+  /* the header and the phone's bottom bar: in the flow (not sticky), safe-area padding from the markup */
+  .top-bar { position: static; z-index: auto; padding-top: 0; }
 
-  .seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--sunken); gap: 2px; box-shadow: var(--inset-track); }
-  .seg button {
-    height: 32px; min-width: 38px; padding: 0 10px; border-radius: 9px; font-size: 12.5px; font-weight: 600;
-    color: var(--ink-3); letter-spacing: .02em;
-  }
-  .seg button[aria-pressed="true"] { background: var(--surface-gradient-raised); color: var(--ink); box-shadow: var(--elevation-1), var(--highlight); }
-
+  /* a plain heading (the package's is a flex row around an h2) */
   .sec-title {
+    display: block; min-height: 0;
     margin: 0 0 10px; font-size: 12.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3);
   }
 
-  /* icon chip, tinted by --c */
-  .ico {
-    --c: var(--teal);
-    width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex-shrink: 0; color: var(--c);
-    background: linear-gradient(180deg, color-mix(in oklab, var(--c) 16%, var(--surface)) 0%, color-mix(in oklab, var(--c) 10%, var(--surface)) 100%);
-    box-shadow: inset 0 1px 0 var(--ico-hl), inset 0 0 0 1px color-mix(in oklab, var(--c) 18%, transparent);
-  }
-  .ico svg { width: 18px; height: 18px; }
-  .ico.sm { width: 28px; height: 28px; border-radius: 8px; }
-  .ico.sm svg { width: 15px; height: 15px; }
   .ico.lg { width: 52px; height: 52px; border-radius: 16px; }
   .ico.lg svg { width: 26px; height: 26px; }
-
-  .dot {
-    --c: var(--ok);
-    width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex-shrink: 0;
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 18%, transparent);
-  }
-  .dot.idle { --c: var(--ink-4); box-shadow: none; }
-  .dot.bad { --c: var(--alert); }
-  .dot.warn { --c: var(--warn); }
-  .dot.live { animation: home-pulse 2.4s var(--ease) infinite; }
-  @keyframes home-pulse {
-    0%, 100% { box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 18%, transparent); }
-    50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--c) 4%, transparent); }
-  }
-
-  /* a raised surface: hairline, 1px top highlight, restrained depth */
-  .card {
-    background: var(--surface-gradient); border: 1px solid var(--line); border-radius: var(--r-lg);
-    box-shadow: var(--elevation-1), var(--highlight);
-  }
 
   /* shadcn primitives: cards, popovers and dialogs get the surface treatment */
   [data-slot="card"] {
@@ -254,71 +131,31 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .dot.live { animation: none; }
-}
-
-/* Wall Display embed mode: the iPad panel (wall-display2) shows the house's pages in a transparent web view over its
-   own dark gradient, this app in an iframe of the start page. Gated on html[data-embed="wall-display"] (the panel
-   injects it, index.html also sets it for the "WallDisplay/" user agent); normal browsers are unaffected.
-   As in home-portal's index.css. */
-/* The panel's own design tokens. The app injects them at document start (<style id="wall-display-tokens">); these
-   literals are the fallback, at zero specificity so the injected ones win. */
-:where(:root[data-embed="wall-display"]) {
-  --wd-backdrop: radial-gradient(1400px circle at top right, rgba(255, 255, 255, .18), transparent 50%), linear-gradient(to bottom right, rgba(255, 158, 102, .55), rgba(184, 89, 158, .55)), #000;
-  --wd-surface: rgba(28, 28, 30, .38);
-  --wd-surface-filter: blur(24px) saturate(180%);
-  --wd-surface-raised: rgba(44, 44, 46, .55);
-  --wd-stroke: rgba(255, 255, 255, .08);
-  --wd-stroke-active: rgba(255, 255, 255, .16);
-  --wd-radius-card: 20px; --wd-radius-tile: 18px; --wd-radius-control: 12px;
-  --wd-page-padding: 20px; --wd-gap: 16px; --wd-card-padding: 18px; --wd-tile-padding: 16px;
-  --wd-text: #ffffff; --wd-text-secondary: rgba(235, 235, 245, .6); --wd-text-tertiary: rgba(235, 235, 245, .3);
-  --wd-accent: rgba(10, 132, 255, 1);
-  --wd-font: -apple-system, system-ui, sans-serif;
-  --wd-title-size: 34px; --wd-tile-title-size: 16px; --wd-tap-target: 44px;
-}
-/* Our tokens on the panel's: translucent surfaces, hairline strokes, no shadows, no tinted canvas. */
+/* Wall Display embed mode: the package (embed.css) maps the tokens onto the panel's and styles its components; these
+   are this app's own. The panel shows this app in an iframe of the start page. */
 :root[data-embed="wall-display"] {
-  color-scheme: dark;
-  --canvas: transparent;
-  --canvas-mesh: none;
-  --surface: var(--wd-surface);
-  --surface-2: var(--wd-surface-raised);
-  --sunken: var(--wd-surface-raised);
-  --surface-gradient: var(--wd-surface);
-  --surface-gradient-raised: var(--wd-surface);
-  --line: var(--wd-stroke);
-  --line-2: var(--wd-stroke);
-  --highlight: 0 0 #0000;
-  --elevation-1: 0 0 #0000; --elevation-2: 0 0 #0000; --elevation-3: 0 0 #0000;
-  --press: 0 0 #0000; --inset-track: 0 0 #0000; --ico-hl: transparent;
-  --ink: var(--wd-text); --ink-2: var(--wd-text-secondary); --ink-3: var(--wd-text-secondary); --ink-4: var(--wd-text-tertiary);
-  --teal: var(--wd-accent); --teal-ink: var(--wd-accent); --teal-fg: #ffffff;
+  --teal-fg: #ffffff;
   --ink-gradient: linear-gradient(var(--wd-accent), var(--wd-accent)); --ink-gradient-fg: #ffffff;
-  --teal-soft: color-mix(in srgb, var(--wd-accent) 16%, transparent); --focus: color-mix(in srgb, var(--wd-accent) 40%, transparent);
-  --r-lg: var(--wd-radius-card); --r-md: var(--wd-radius-tile); --r-sm: var(--wd-radius-control);
+  --r-sm: var(--wd-radius-control);
 }
-:root[data-embed="wall-display"] :is(html, body, #root) { background: transparent; }
-:root[data-embed="wall-display"] body { font-family: var(--wd-font); }
-:root[data-embed="wall-display"] .top-bar { background: transparent; border-bottom-color: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* headers as in the markup (the package keeps them --wd-edge-inset off the panel's edge; here the start page's frame
+   is above) */
+:root[data-embed="wall-display"] header.top-bar { padding-top: env(safe-area-inset-top); }
+:root[data-embed="wall-display"] nav.top-bar { padding-top: 0; }
 /* the sidebar: a translucent panel, no opaque fill */
 :root[data-embed="wall-display"] nav.bg-\[var\(--surface-2\)\] { background: var(--wd-surface); border-right-color: var(--wd-stroke); backdrop-filter: var(--wd-surface-filter); -webkit-backdrop-filter: var(--wd-surface-filter); }
 /* cards and dialogs: the panel's glass */
-:root[data-embed="wall-display"] :is(.card, [data-slot="card"], [data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"], [data-slot="popover-content"]) {
+:root[data-embed="wall-display"] :is([data-slot="card"], [data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"], [data-slot="popover-content"]) {
   background: var(--wd-surface); border: 1px solid var(--wd-stroke); box-shadow: none;
   backdrop-filter: var(--wd-surface-filter); -webkit-backdrop-filter: var(--wd-surface-filter);
 }
 :root[data-embed="wall-display"] :is([data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="dropdown-menu-content"], [data-slot="select-content"], [data-slot="popover-content"]) {
   background: rgba(28, 28, 30, .82);
 }
-/* fields, buttons, segmented controls */
-:root[data-embed="wall-display"] :is([data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"], [data-slot="button"], .seg) {
+/* fields and buttons */
+:root[data-embed="wall-display"] :is([data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"], [data-slot="button"]) {
   border-radius: var(--wd-radius-control); box-shadow: none;
 }
-:root[data-embed="wall-display"] :is([data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"], .seg) { background: var(--wd-surface-raised); border-color: var(--wd-stroke); }
-:root[data-embed="wall-display"] .seg button[aria-pressed="true"] { background: var(--wd-stroke-active); box-shadow: none; }
-:root[data-embed="wall-display"] .ico { background: transparent; box-shadow: none; }
+:root[data-embed="wall-display"] :is([data-slot="input"], [data-slot="textarea"], [data-slot="select-trigger"]) { background: var(--wd-surface-raised); border-color: var(--wd-stroke); }
 /* arm's length on a wall: targets at least 44pt */
-:root[data-embed="wall-display"] .seg button { height: 44px; min-width: 48px; }
 :root[data-embed="wall-display"] [data-slot="button"] { min-height: var(--wd-tap-target); }
