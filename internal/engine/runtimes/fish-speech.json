@@ -1,0 +1,19 @@
+{
+  "name": "fish-speech",
+  "notes": "mlx-speech 0.5.6 from PyPI (Fish Audio S2 Pro, 8-bit MLX conversion), pure MLX; its own environment beside the speech runtime's mlx-audio (Python 3.13, newer MLX). The direct dependencies pinned as mlx-speech's own uv tool installs them",
+  "script": "fish_speech.py",
+  "envs": {
+    "darwin-arm64": {
+      "python": "3.13",
+      "packages": [
+        "mlx-speech==0.5.6",
+        "mlx==0.32.4",
+        "numpy==2.5.4",
+        "safetensors==0.8.0",
+        "soundfile==0.14.0",
+        "tokenizers==0.23.3",
+        "huggingface-hub==1.33.0"
+      ]
+    }
+  }
+}

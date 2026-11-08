@@ -3376,6 +3376,80 @@
     },
     {
       "api": {
+        "id": "fish-s2-pro",
+        "name": "Fish Audio S2 Pro",
+        "kind": "speech",
+        "backend": "speech",
+        "about": "Fish Audio's S2 Pro (8-bit MLX, mlx-speech): clones a voice from a sample and its exact transcript (use a sample in the text's language); inline [tags] like [whisper] or [excited] steer the delivery, instruct becomes such a tag; 44.1 kHz; about 2× real time on an M1 Max once loaded, 12 GB at the peak. Non-commercial, the weights may not be passed on",
+        "size": 6735003648,
+        "memory": 12,
+        "here": false,
+        "where": "",
+        "gated": false,
+        "licence": "Fish Audio Research License",
+        "nonCommercial": true,
+        "tasks": [
+          "clone",
+          "instruct",
+          "speed"
+        ],
+        "audio": {
+          "instruct": true,
+          "maxChars": 5000
+        },
+        "defaults": {
+          "model": "",
+          "speed": 1
+        }
+      },
+      "sources": [
+        {
+          "key": "model",
+          "repo": "appautomaton/fishaudio-s2-pro-8bit-mlx",
+          "rev": "520af75a48816821e59fce7f6b7a85deb49e7f1c",
+          "include": [
+            "*.json",
+            "*.safetensors",
+            "*.jinja",
+            "LICENSE.md"
+          ]
+        }
+      ],
+      "runtime": {
+        "workerModel": "fish-s2",
+        "env": {
+          "name": "fish-speech",
+          "python": "3.13",
+          "packages": [
+            "mlx-speech==0.5.6",
+            "mlx==0.32.4",
+            "numpy==2.5.4",
+            "safetensors==0.8.0",
+            "soundfile==0.14.0",
+            "tokenizers==0.23.3",
+            "huggingface-hub==1.33.0"
+          ]
+        }
+      },
+      "repoURL": "https://huggingface.co/appautomaton/fishaudio-s2-pro-8bit-mlx",
+      "downloadable": true,
+      "licence": "Fish Audio Research License",
+      "nonCommercial": true,
+      "fitsGB": [
+        16,
+        24,
+        32,
+        48,
+        64,
+        96,
+        128,
+        192,
+        512
+      ],
+      "role": "speech"
+    },
+    {
+      "api": {
         "id": "qwen3-asr",
         "name": "Qwen3-ASR 1.7B (transcribe)",
         "kind": "speech",

@@ -43,7 +43,7 @@ func TestSpeechLive(t *testing.T) {
 	}
 	want := strings.Split(os.Getenv("MLXLAB_SPEECH_MODELS"), ",")
 	if want[0] == "" {
-		want = []string{"qwen3-tts-1.7b", "qwen3-tts-0.6b", "chatterbox-v3", "voxcpm2", "higgs-audio-v3", "voxtral-tts"}
+		want = []string{"qwen3-tts-1.7b", "qwen3-tts-0.6b", "chatterbox-v3", "voxcpm2", "higgs-audio-v3", "voxtral-tts", "fish-s2-pro"}
 	}
 	say := func(id, voice, name string) {
 		m := byID[id]

@@ -23,7 +23,7 @@ pinned one by one with checksums (`internal/llm`, `internal/models`) and their e
 | `ltx` | `video` | LTX-2.5 | `hq`: the two-stage HQ pipeline of the dev transformer |
 | `avatar` | `avatar` | LTX-2.5 avatar, LongCat Avatar | `runtime`: `ltx-a2v` or `longcat` |
 | `music` | `music` | ACE-Step, Stable Audio 3, MiniMax Music 3, LeVo 2, HeartMuLa, YuE2 | `runtime` (the song runtime), `workerModel`; `maxSeconds`, `lora` {`file`, `trigger`, `scale`} |
-| `speech` | `speech` | Kokoro, Qwen3-TTS, Chatterbox, VoxCPM2, Higgs, Voxtral, Qwen3-ASR, Qwen3-ForcedAligner | `workerModel` (the family; its tasks, voices and languages come from it); a family the catalogue does not know: `speech` ("A speech family of its own") |
+| `speech` | `speech` | Kokoro, Qwen3-TTS, Chatterbox, VoxCPM2, Higgs, Voxtral, Qwen3-ASR, Qwen3-ForcedAligner (mlx-audio); Fish Audio S2 Pro (mlx-speech, the runtime `fish-speech`) | `workerModel` (the family; its tasks, voices, languages and runtime come from it); a family the catalogue does not know: `speech` ("A speech family of its own") |
 | `sound` | `sound` | MOSS-SoundEffect | `workerModel` |
 | a generic runtime | its `kinds` | a new library's models ("Generic runtimes"); `detect` only here (SAM 3.1) | `workerModel`; `params` |
 | a server runtime | `chat` | mlx-lm, mlx-vlm, llama.cpp ("Server runtimes") | `workerModel` (a GGUF file); `images` |
@@ -251,6 +251,17 @@ description allows:
 The model's tasks, voices and languages in `/api/models` follow from it, as for the catalogue's families; the aligner
 gives word timings as for every speech model. Tried: KittenTTS micro 0.8 (`docs/examples/models.d/kitten-tts-micro.json`,
 136 MB) — 10 s of English with the voice Bella in 6.5 s on an M2 Pro; the speech runtime installed by the worker.
+
+### A family in a runtime of its own: Fish Audio S2 Pro
+
+A family whose library is not mlx-audio names its runtime in Go (`speechFamilies`, `runtime`): Fish Audio S2 Pro
+(`fish-s2-pro`, workerModel `fish-s2`) runs on mlx-speech 0.5.6 from PyPI in `runtimes/fish-speech.json` (Python
+3.13, MLX 0.32.4; the direct dependencies pinned) with its worker `workers/fish_speech.py`, which speaks
+`speech.py`'s request. The speech backend keeps one worker per runtime and stops the other before it starts one, so
+only one speech model is in memory. The model is a manifest like the others (`catalog/fish-s2-pro.json`:
+`appautomaton/fishaudio-s2-pro-8bit-mlx` pinned, 6.3 GB, `memory: 12`), downloaded from Hugging Face on install,
+never bundled; the download prepares its environment as for every runtime. Its licence is the Fish Audio Research
+License, `nonCommercial: true` (docs/voice-avatar.md).
 
 ## ComfyUI
 

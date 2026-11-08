@@ -42,6 +42,7 @@ type speechFamily struct {
 	honoured string                   // what of the request it honours, for the model's "about"
 	words    bool                     // it gives word timings itself (Kokoro, English; any model with the aligner)
 	speaks   []string                 // the languages it speaks when it is not told them (langs) — nil: many, it detects
+	runtime  string                   // the Python runtime it runs in ("" the speech runtime: mlx-audio, speech.py)
 
 	// a family a model's manifest describes (runtimeArgs.speech) instead of Go: mlx-audio's model type, and whether
 	// it takes an instruction; speech.py runs it on its general path
@@ -115,8 +116,22 @@ var speechFamilies = map[string]*speechFamily{
 		return "neutral_female"
 	}, honoured: "presets (the language picks the default one)",
 		speaks: []string{"en", "fr", "es", "de", "it", "pt", "nl", "ar", "hi"}},
+	// Fish Audio S2 Pro (mlx-speech, its own runtime): no presets (a random voice per seed), clones from a sample with
+	// its exact transcript (a sample in the text's language, else the accent carries over); instruct becomes an inline
+	// tag ([whisper], [excited], [professional broadcast tone]), tags in the text are its own. Detects the language;
+	// speed by stretching; no word timings (the aligner is in the other runtime).
+	"fish-s2": {clone: true, runtime: "fish-speech",
+		honoured: "cloning (sample + its transcript, same language), instruct as an inline [tag], [tags] in the text"},
 	"asr":   {},
 	"align": {},
+}
+
+// speechRuntime is the Python runtime a speech family runs in.
+func speechRuntime(workerModel string) string {
+	if f := speechFamilies[workerModel]; f != nil && f.runtime != "" {
+		return f.runtime
+	}
+	return "speech"
 }
 
 // speechTool: the worker model is a tool of the speech models (the transcriber, the aligner), not a voice.
@@ -230,8 +245,9 @@ type VoiceStore interface {
 	Voice(id string) (Voice, bool)
 }
 
-// SpeechBackend runs the speech models in one mlx-audio worker; it keeps the last TTS model (and Qwen3-ASR, once
-// used) loaded. It is the Speaker of the avatar backend.
+// SpeechBackend runs the speech models in one mlx-audio worker (a family of its own runtime, Fish S2 Pro's
+// mlx-speech, in a worker of that runtime: one of them runs at a time); it keeps the last TTS model (and Qwen3-ASR,
+// once used) loaded. It is the Speaker of the avatar backend.
 type SpeechBackend struct {
 	Root    string
 	Store   *models.Store
@@ -244,7 +260,7 @@ type SpeechBackend struct {
 	hasAligner func() bool // Qwen3-ForcedAligner on disk (nil: the store says)
 
 	mu    sync.Mutex
-	w     *pyWorker
+	ws    map[string]*pyWorker // by runtime (speechRuntime)
 	state status
 }
 
@@ -257,8 +273,8 @@ func (b *SpeechBackend) Loaded() string { return b.state.get() }
 func (b *SpeechBackend) Unload() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.w != nil {
-		b.w.stop()
+	for _, w := range b.ws {
+		w.stop()
 	}
 	b.state.set("")
 }
@@ -391,16 +407,17 @@ func (b *SpeechBackend) transcribe(ctx context.Context, file, language string, e
 	if err != nil {
 		return "", err
 	}
-	if err := b.worker(ctx, emit); err != nil {
+	w, err := b.worker(ctx, "speech", emit)
+	if err != nil {
 		return "", err
 	}
 	if b.state.get() == "" {
 		b.state.set("qwen3-asr")
 	}
-	ev, err := b.w.call(ctx, map[string]any{"op": "asr", "dirs": map[string]string{"asr": dir}, "audio": file,
+	ev, err := w.call(ctx, map[string]any{"op": "asr", "dirs": map[string]string{"asr": dir}, "audio": file,
 		"language": language}, emit)
 	if err != nil {
-		b.afterError()
+		b.afterError(w)
 		return "", err
 	}
 	return strings.TrimSpace(ev.Text), nil
@@ -421,23 +438,41 @@ func (b *SpeechBackend) fetchRepo(ctx context.Context, name string, hr hubRepo, 
 	return fetch(ctx, b.Store, hm, emit)
 }
 
-func (b *SpeechBackend) worker(ctx context.Context, emit Emit) error {
-	if b.w == nil {
-		env := SpeechEnv()
+// worker is the running worker of a runtime ("speech", or a family's own): the other runtime's worker is stopped
+// first, so only one of them keeps a model in memory.
+func (b *SpeechBackend) worker(ctx context.Context, runtime string, emit Emit) (*pyWorker, error) {
+	for name, w := range b.ws {
+		if name != runtime && w.running() {
+			emit.Log("stopping the " + name + " runtime (one speech runtime at a time)")
+			w.stop()
+			b.state.set("")
+		}
+	}
+	w := b.ws[runtime]
+	if w == nil {
+		env := runtimeEnv(runtime)
 		if b.env != nil {
 			env = *b.env
 		}
-		b.w = &pyWorker{env: env, script: "speech.py"}
+		script := "speech.py"
+		if rt := runtimeManifest(runtime); rt != nil && rt.Script != "" {
+			script = rt.Script
+		}
+		w = &pyWorker{env: env, script: script}
+		if b.ws == nil {
+			b.ws = map[string]*pyWorker{}
+		}
+		b.ws[runtime] = w
 	}
-	if b.w.running() {
-		return nil
+	if w.running() {
+		return w, nil
 	}
 	b.state.set("")
-	return b.w.start(ctx, b.Root, emit)
+	return w, w.start(ctx, b.Root, emit)
 }
 
-func (b *SpeechBackend) afterError() {
-	if b.w == nil || !b.w.running() {
+func (b *SpeechBackend) afterError(w *pyWorker) {
+	if w == nil || !w.running() {
 		b.state.set("")
 	}
 }
@@ -497,15 +532,17 @@ func (b *SpeechBackend) speak(ctx context.Context, m *Model, r Request, out stri
 	if dirs["model"] == "" {
 		return said, fmt.Errorf("%s cannot speak with a %s voice", m.Name, v.Mode)
 	}
-	// the words' timings: Qwen3-ForcedAligner when it is on disk and times the language (never fetched for a clip)
-	if slices.Contains(alignLangs, lang) && b.alignerHere() {
+	// the words' timings: Qwen3-ForcedAligner when it is on disk and times the language (never fetched for a clip);
+	// it runs in the speech runtime, not in a family's own
+	if fam.runtime == "" && slices.Contains(alignLangs, lang) && b.alignerHere() {
 		if dir, err := b.fetchRepo(ctx, "Qwen3-ForcedAligner", alignRepo(), emit); err == nil {
 			dirs["align"] = dir
 		} else {
 			emit.Log("no word timings: " + err.Error())
 		}
 	}
-	if err := b.worker(ctx, emit); err != nil {
+	w, err := b.worker(ctx, speechRuntime(m.workerModel), emit)
+	if err != nil {
 		return said, err
 	}
 	req := map[string]any{"op": "tts", "family": m.workerModel, "dirs": dirs, "voice": v, "instruct": r.Instruct,
@@ -522,9 +559,9 @@ func (b *SpeechBackend) speak(ctx context.Context, m *Model, r Request, out stri
 	emit(Event{Type: "stats", Data: map[string]any{"seed": r.Seed, "voice": v.label(), "sentences": len(chunks), "language": lang}})
 	emit.Log(m.Name + " honours: " + fam.honoured)
 	b.state.set(m.ID) // loading counts as loaded: it takes the memory
-	ev, err := b.w.call(ctx, req, emit)
+	ev, err := w.call(ctx, req, emit)
 	if err != nil {
-		b.afterError()
+		b.afterError(w)
 		return said, err
 	}
 	if !fam.speed && r.Speed > 0 && (r.Speed < 0.99 || r.Speed > 1.01) {

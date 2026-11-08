@@ -1170,10 +1170,12 @@ puts the defaults of each kind first: `ace-step-1.5-turbo`, `stable-audio-3-smal
 * **`sound`** — sound effects ("a door creaking", "rain on a window"): `moss-soundeffect`.
   `{"id","name","kind":"sound","worker","default":{"seconds":8},"maxSeconds":30,"nonCommercial"}`; request
   `{"kind":"sound","prompt","seconds"?,"seed"?}` (`seconds` 0 → 8, then 1 to 30).
-* **`speech`** — text read aloud. Catalogue models, all on mlx-audio (the speech backend's one Python worker):
+* **`speech`** — text read aloud. Catalogue models on mlx-audio (the speech backend's Python worker), and Fish Audio
+  S2 Pro (`fish-s2-pro`) on mlx-speech in a worker of its own runtime:
   **Kokoro 82M** (`kokoro-82m`, Apache-2.0, 339 MB, fast; 49 preset voices in English (US, UK), Spanish, French,
   Italian, Portuguese, Hindi, Chinese — **no German**, and no Japanese: its G2P would need a source build and a
-  500 MB dictionary, see docs/voice-avatar.md), Qwen3-TTS (0.6B, 1.7B), Chatterbox, VoxCPM2, Higgs Audio, Voxtral TTS.
+  500 MB dictionary, see docs/voice-avatar.md), Qwen3-TTS (0.6B, 1.7B), Chatterbox, VoxCPM2, Higgs Audio, Voxtral TTS,
+  Fish Audio S2 Pro (cloned voices of the library only; non-commercial).
 
   ```json
   {"id": "kokoro-82m", "name": "Kokoro 82M", "kind": "speech", "worker": "Mac Studio",
@@ -1183,7 +1185,7 @@ puts the defaults of each kind first: `ace-step-1.5-turbo`, `stable-audio-3-smal
   ```
 
   `voices`: the model's preset voices (id, name, language — the language it is made for; Qwen3-TTS's speak all ten;
-  `[]`: none, the model's own voice — VoxCPM2, Higgs; the worker's voice library — cloned voices — is not offered to
+  `[]`: none, the model's own voice — VoxCPM2, Higgs, Fish S2 Pro; the worker's voice library — cloned voices — is not offered to
   boards); `languages`: what it speaks (`[]` = it detects them: VoxCPM2, Higgs); `instruct`: it takes how to say it
   ("warm, slow") (Qwen3-TTS, Chatterbox as emotion, VoxCPM2, Higgs); `maxChars`: 5000 for all.
   Request: `{"kind":"speech","generator"?,"text","voice"?,"language"?,"instruct"?,"seed"?}` — `text` required, at
@@ -1381,7 +1383,8 @@ model, which may not exist yet.
   4B Apache-2.0, 9B "FLUX Non-Commercial License", LTX-2.5 "LTX-2 Community License", the SeedVR2 upscalers
   Apache-2.0 and the BiRefNet cutout models MIT — listed as `image` models; ACE-Step MIT, Stable Audio 3 "Stability AI Community License", YuE2 and
   LeVo 2 non-commercial, MOSS-SoundEffect, Kokoro, Qwen3-ASR and Qwen3-ForcedAligner Apache-2.0, Higgs and Voxtral
-  non-commercial). `url`: the
+  non-commercial, Fish Audio S2 Pro "Fish Audio Research License", non-commercial — its weights must not be
+  redistributed, so a client asks the person to confirm before downloading or using it). `url`: the
   Hugging Face page (for a model of several repositories its own, the first). `tasks` (absent when the model has
   none): what the model does — for an image model `["upscale"]` for the SeedVR2 upscalers (so vboard tells an
   upscaler from a picture model before it is a generator), `["cutout"]` for the BiRefNet cutout models (their role

@@ -120,6 +120,9 @@ func TestResolveVoice(t *testing.T) {
 		{"chatterbox-v3", "oma-1", speechVoice{}, "cannot make a voice"},
 		{"voxcpm2", "oma-1", speechVoice{Mode: "design", Description: "a calm older woman", name: "Oma"}, ""},
 		{"higgs-audio-v3", "ryan", speechVoice{}, "has no preset voices"},
+		{"fish-s2-pro", "anna-1", speechVoice{Mode: "clone", RefAudio: sample, RefText: "Hallo.", name: "Anna", language: "de"}, ""},
+		{"fish-s2-pro", "oma-1", speechVoice{}, "cannot make a voice"},
+		{"fish-s2-pro", "ryan", speechVoice{}, "has no preset voices"},
 	} {
 		got, err := resolveVoice(byID[c.model], lib, c.voice)
 		if c.err != "" {
@@ -161,7 +164,7 @@ func TestSpeechCatalog(t *testing.T) {
 				t.Errorf("%s: %s not pinned", m.ID, hr.repo)
 			}
 		}
-		nc := m.ID == "higgs-audio-v3" || m.ID == "voxtral-tts"
+		nc := m.ID == "higgs-audio-v3" || m.ID == "voxtral-tts" || m.ID == "fish-s2-pro"
 		if m.NonCommercial != nc {
 			t.Errorf("%s: nonCommercial %v", m.ID, m.NonCommercial)
 		}
@@ -178,6 +181,7 @@ func TestSpeechCatalog(t *testing.T) {
 		"higgs-audio-v3":       "clone,instruct,speed",
 		"voxtral-tts":          "presets,speed,language",
 		"kokoro-82m":           "presets,speed,language",
+		"fish-s2-pro":          "clone,instruct,speed",
 		"qwen3-asr":            "transcribe",
 		"qwen3-forced-aligner": "align",
 	} {

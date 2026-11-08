@@ -309,3 +309,64 @@ func TestStretchWords(t *testing.T) {
 		t.Fatalf("%v", got)
 	}
 }
+
+// Fish S2 Pro runs in a worker of its own runtime (fish-speech): its request is speech.py's (a cloned voice with the
+// sample and its transcript, the instruction, the seed), never with the aligner (that is mlx-audio's); the speech
+// runtime's worker is stopped before it starts, so one of them keeps a model in memory.
+func TestSpeechRequestFish(t *testing.T) {
+	b := fakeSpeechBackend(t)
+	defer b.Unload()
+	b.hasAligner = func() bool { return true }
+	sample := filepath.Join(t.TempDir(), "de-male.wav")
+	must(t, os.WriteFile(sample, []byte("RIFF"), 0o644))
+	b.Voices = fakeVoices{"de-male": {ID: "de-male", Name: "de-male", Kind: "clone", Sample: sample,
+		Transcript: "In diesem Tutorial zeichnen wir eine Skizze.", Language: "de"}}
+	sp := byID(speechModels())
+	run := func(model string, r Request) (map[string]any, map[string]any) {
+		t.Helper()
+		var file string
+		var res map[string]any
+		must(t, b.Run(context.Background(), sp[model], r, t.TempDir(), func(ev Event) {
+			switch ev.Type {
+			case "file":
+				file = ev.File
+			case "result":
+				res = ev.Data
+			}
+		}))
+		raw, err := os.ReadFile(file)
+		must(t, err)
+		var req map[string]any
+		must(t, json.Unmarshal(raw, &req))
+		return req, res
+	}
+	run("qwen3-tts-1.7b", Request{Text: "Guten Morgen, wie geht es dir heute?", Language: "de"})
+	speech := b.ws["speech"]
+	if speech == nil || !speech.running() {
+		t.Fatal("the speech runtime's worker is not running")
+	}
+	req, res := run("fish-s2-pro", Request{Text: "Öffne den Reiter Parameter gleich neben den Features.", Voice: "de-male",
+		Instruct: "calm", Seed: 3})
+	v := req["voice"].(map[string]any)
+	dirs := req["dirs"].(map[string]any)
+	if req["family"] != "fish-s2" || v["mode"] != "clone" || v["ref_audio"] != sample || v["ref_text"] != "In diesem Tutorial zeichnen wir eine Skizze." ||
+		req["language"] != "de" || req["instruct"] != "calm" || req["seed"] != 3.0 || dirs["model"] != "/w/model" || dirs["align"] != nil {
+		t.Fatalf("request %v", req)
+	}
+	if res["voice"] != (PresetVoice{"de-male", "de-male", "de"}) || res["words"] != nil {
+		t.Fatalf("result %v", res)
+	}
+	if speech.running() || b.ws["fish-speech"] == nil || !b.ws["fish-speech"].running() {
+		t.Fatal("the speech runtime's worker still runs beside Fish S2 Pro's")
+	}
+	if _, err := os.Stat(filepath.Join(b.env.Dir(b.Root), "mlxlab_fish_speech.py")); err != nil {
+		t.Fatalf("Fish S2 Pro's script: %v", err)
+	}
+	if runtimeName(sp["fish-s2-pro"]) != "fish-speech" || runtimeName(sp["voxcpm2"]) != "speech" {
+		t.Fatal("runtime names")
+	}
+	// no presets, no designed voices
+	if err := b.Run(context.Background(), sp["fish-s2-pro"], Request{Text: "Hello there, this is a test.", Voice: "Ryan"}, t.TempDir(), func(Event) {}); err == nil {
+		t.Fatal("Ryan is no Fish S2 Pro voice")
+	}
+}

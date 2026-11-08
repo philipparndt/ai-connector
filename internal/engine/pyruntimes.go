@@ -340,8 +340,10 @@ func (rt *RuntimeManifest) source() ([]byte, error) {
 // runtimeName is the Python runtime a model runs in ("" none: Go, a local server, Claude Code).
 func runtimeName(m *Model) string {
 	switch m.Backend {
-	case "mflux", "cutout", "sound", "speech":
+	case "mflux", "cutout", "sound":
 		return m.Backend
+	case "speech":
+		return speechRuntime(m.workerModel) // a family may have a runtime of its own (Fish S2 Pro: fish-speech)
 	case "ltx":
 		return "ltx-2-mlx"
 	case "music":

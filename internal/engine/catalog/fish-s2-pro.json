@@ -1,0 +1,31 @@
+{
+  "id": "fish-s2-pro",
+  "name": "Fish Audio S2 Pro",
+  "kind": "speech",
+  "backend": "speech",
+  "order": 75,
+  "about": "Fish Audio's S2 Pro (8-bit MLX, mlx-speech): clones a voice from a sample and its exact transcript (use a sample in the text's language); inline [tags] like [whisper] or [excited] steer the delivery, instruct becomes such a tag; 44.1 kHz; about 2× real time on an M1 Max once loaded, 12 GB at the peak. Non-commercial, the weights may not be passed on",
+  "licence": "Fish Audio Research License",
+  "nonCommercial": true,
+  "size": "6423 MB",
+  "memory": 12,
+  "sources": [
+    {
+      "key": "model",
+      "repo": "appautomaton/fishaudio-s2-pro-8bit-mlx",
+      "rev": "520af75a48816821e59fce7f6b7a85deb49e7f1c",
+      "include": [
+        "*.json",
+        "*.safetensors",
+        "*.jinja",
+        "LICENSE.md"
+      ]
+    }
+  ],
+  "defaults": {
+    "speed": 1
+  },
+  "runtimeArgs": {
+    "workerModel": "fish-s2"
+  }
+}
