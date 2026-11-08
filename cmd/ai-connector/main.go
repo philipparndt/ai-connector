@@ -56,6 +56,7 @@ usage:
   mlxlab list                                 the models and where they are
   mlxlab run [options] <model> <prompt…>      one job; text goes to stdout, files are listed
   mlxlab mcp list | call <server__tool> [json] | serve transit the MCP servers of mcp.json and their tools (docs/chat-tools.md)
+  mlxlab voices list | import <voices.yaml>   the speech models' voice library; import: a set of reference clips with their transcripts
   mlxlab agents login | status [--state DIR]  Claude Code's login as this worker's agent sessions use it (docs/api.md)
   ai-connector vboard <vboard address> --token T [--agents LIST]
                                               vboard's local AI on this computer, no server (ai-connector vboard --help)
@@ -78,6 +79,7 @@ state:  --state DIR ($MLXLAB_STATE): this process's jobs (history.json, outputs/
 
 run options: --size WxH --steps N --seed N --frames N --fps N --q 4|8|-1 --image FILE --temp T --think
              music: <model> "<style>" --lyrics FILE --duration SECONDS --instrumental --bpm N --planner 4b|off
+             speech: <model> "<text>" --voice NAME --language de --instruct "calm" --speed 1
 
 files: ~/.config/mlxlab (models/, envs/, outputs/, history.json, worker.json; $MLXLAB_HOME)
 `)
@@ -94,6 +96,8 @@ func run() error {
 		return tui.Main(args)
 	case cmd == "mcp":
 		return mcpCommand(args)
+	case cmd == "voices":
+		return voicesCommand(args)
 	case cmd == "guard":
 		return guardMain(args)
 	case cmd == "agents":

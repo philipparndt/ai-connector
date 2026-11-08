@@ -29,6 +29,8 @@ type runOptions struct {
 	bpm                           int
 	planner                       string
 	maxTokens                     int
+	voice, language, instruct     string
+	speed                         float64
 }
 
 func (o *runOptions) flags(fs *flag.FlagSet) {
@@ -50,6 +52,10 @@ func (o *runOptions) flags(fs *flag.FlagSet) {
 	fs.BoolVar(&o.instrumental, "instrumental", false, "music: no vocals")
 	fs.IntVar(&o.bpm, "bpm", 0, "music: the tempo (default: \"NNN bpm\" in the style)")
 	fs.StringVar(&o.planner, "planner", "", "music (ACE-Step): the planner LM, 4b or off")
+	fs.StringVar(&o.voice, "voice", "", "speech: a preset of the model or a voice of the library (mlxlab voices list)")
+	fs.StringVar(&o.language, "language", "", "speech: the text's language (de, en, …; default: as the text looks)")
+	fs.StringVar(&o.instruct, "instruct", "", "speech: how to say it (\"calm, slow\"), where the model takes it")
+	fs.Float64Var(&o.speed, "speed", 0, "speech: 0.5–2 (default 1)")
 }
 
 func (o *runOptions) run(mgr *jobs.Manager, args []string) error {
@@ -87,6 +93,8 @@ func (o *runOptions) run(mgr *jobs.Manager, args []string) error {
 		return errors.New("the classifier: use the TUI or the web app")
 	case engine.Sound:
 		r.Prompt, r.Duration = text, o.duration
+	case engine.Speech:
+		r.Text, r.Voice, r.Language, r.Instruct, r.Speed = text, o.voice, o.language, o.instruct, o.speed
 	case engine.Music:
 		r.Prompt, r.Duration, r.Instrumental, r.BPM, r.Planner = text, o.duration, o.instrumental, o.bpm, o.planner
 		if o.lyrics != "" {

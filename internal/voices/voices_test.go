@@ -217,3 +217,74 @@ func TestNewID(t *testing.T) {
 		}
 	}
 }
+
+// A voice set (voices.yaml with its clips) becomes cloned voices named as in the set, the clips at their own rate;
+// a voice without a transcript or clip is left out, and a second import adds nothing.
+func TestImportSet(t *testing.T) {
+	ctx := context.Background()
+	set := t.TempDir()
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(os.MkdirAll(filepath.Join(set, "fish-s2-pro"), 0o755))
+	b, err := os.ReadFile(tone(t, "6"))
+	must(err)
+	must(os.WriteFile(filepath.Join(set, "fish-s2-pro", "de-male.mp3"), b, 0o644))
+	must(os.WriteFile(filepath.Join(set, "fish-s2-pro", "en-gb-female.mp3"), b, 0o644))
+	file := filepath.Join(set, "voices.yaml")
+	must(os.WriteFile(file, []byte(`# a set
+model: fish-s2-pro
+dir: fish-s2-pro
+voices:
+  en-gb-female:
+    language: English
+    accent: British
+    reference: en-gb-female.mp3
+    transcript: "In this tutorial, we'll draw a sketch."
+    origin: {seed: 3, language: null, tag: null}
+  de-male:
+    language: German
+    reference: de-male.mp3
+    transcript: "In diesem Tutorial zeichnen wir eine Skizze."
+  no-text:
+    language: German
+    reference: de-male.mp3
+  gone:
+    language: de
+    reference: gone.wav
+    transcript: "Hallo."
+`), 0o644))
+	lib := Open(filepath.Join(t.TempDir(), "voices"))
+	res, err := lib.ImportSet(ctx, file)
+	must(err)
+	if len(res.Added) != 2 || res.Added[0].Name != "en-gb-female" || res.Added[1].Name != "de-male" || len(res.Skipped) != 2 ||
+		res.Skipped["no-text"] == "" || res.Skipped["gone"] == "" {
+		t.Fatalf("import %+v", res)
+	}
+	de, ok := lib.Voice("de-male")
+	if !ok || de.Kind != "clone" || de.Language != "de" || de.Transcript != "In diesem Tutorial zeichnen wir eine Skizze." ||
+		filepath.Dir(de.Sample) != lib.Dir {
+		t.Fatalf("de-male %+v", de)
+	}
+	if en, _ := lib.Voice("en-gb-female"); en.Language != "en" {
+		t.Fatalf("en-gb-female %+v", en)
+	}
+	if p := probe(t, de.Sample); !strings.Contains(p, "sample_rate=44100") || !strings.Contains(p, "channels=1") {
+		t.Errorf("the clip's own rate, mono: %s", p)
+	}
+	if d := seconds(de.Sample); d < 5.5 || d > 6.01 {
+		t.Errorf("seconds %v", d)
+	}
+	// again: nothing new
+	res, err = lib.ImportSet(ctx, file)
+	must(err)
+	if vs, _ := lib.List(); len(res.Added) != 0 || len(vs) != 2 {
+		t.Fatalf("second import %+v, %d voices", res, len(vs))
+	}
+	if _, err := lib.ImportSet(ctx, filepath.Join(set, "missing.yaml")); err == nil {
+		t.Fatal("a missing set")
+	}
+}

@@ -7,6 +7,7 @@ package voices
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -158,6 +159,11 @@ func cleanName(name string) (string, error) {
 // AddClone adds a voice from a sample of a speaker (any format ffmpeg reads): converted to 24 kHz mono wav and cut
 // to MaxSample seconds. Without a transcript, Transcribe writes it.
 func (l *Library) AddClone(ctx context.Context, name string, sample io.Reader, transcript, language string) (engine.Voice, error) {
+	return l.addClone(ctx, name, sample, transcript, language, SampleRate)
+}
+
+// addClone adds a cloned voice with its sample at rate (0: the sample's own, e.g. a set's 44.1 kHz references).
+func (l *Library) addClone(ctx context.Context, name string, sample io.Reader, transcript, language string, rate int) (engine.Voice, error) {
 	name, err := cleanName(name)
 	if err != nil {
 		return engine.Voice{}, err
@@ -177,7 +183,7 @@ func (l *Library) AddClone(ctx context.Context, name string, sample io.Reader, t
 	}
 	raw.Close()
 	out := filepath.Join(l.Dir, id+".wav")
-	if err := Convert(ctx, raw.Name(), out); err != nil {
+	if err := convert(ctx, raw.Name(), out, rate); err != nil {
 		return engine.Voice{}, err
 	}
 	if d := seconds(out); d < 1 {
@@ -342,10 +348,17 @@ func (l *Library) Delete(id string) error {
 }
 
 // Convert makes a sample of any audio file: 24 kHz mono 16-bit wav, leading silence cut, at most MaxSample seconds.
-func Convert(ctx context.Context, in, out string) error {
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-v", "error", "-i", in, "-vn",
-		"-af", "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1",
-		"-ac", "1", "-ar", fmt.Sprint(SampleRate), "-t", fmt.Sprint(MaxSample), "-c:a", "pcm_s16le", "-map_metadata", "-1", "-bitexact", out)
+func Convert(ctx context.Context, in, out string) error { return convert(ctx, in, out, SampleRate) }
+
+// convert is Convert at another sample rate (0: the file's own).
+func convert(ctx context.Context, in, out string, rate int) error {
+	args := []string{"-y", "-v", "error", "-i", in, "-vn",
+		"-af", "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1", "-ac", "1"}
+	if rate > 0 {
+		args = append(args, "-ar", fmt.Sprint(rate))
+	}
+	args = append(args, "-t", fmt.Sprint(MaxSample), "-c:a", "pcm_s16le", "-map_metadata", "-1", "-bitexact", out)
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		os.Remove(out)
 		if errors.Is(err, exec.ErrNotFound) {
@@ -356,11 +369,15 @@ func Convert(ctx context.Context, in, out string) error {
 	return nil
 }
 
-// seconds is the length of a 16-bit mono wav at SampleRate (as Convert writes it).
+// seconds is the length of a 16-bit mono wav as convert writes it (a 44-byte header; its byte rate at 28).
 func seconds(file string) float64 {
-	st, err := os.Stat(file)
-	if err != nil || st.Size() < 44 {
+	b, err := os.ReadFile(file)
+	if err != nil || len(b) < 44 {
 		return 0
 	}
-	return float64(st.Size()-44) / (2 * SampleRate)
+	byteRate := binary.LittleEndian.Uint32(b[28:32])
+	if byteRate == 0 {
+		return 0
+	}
+	return float64(len(b)-44) / float64(byteRate)
 }

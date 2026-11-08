@@ -16,6 +16,7 @@ Models (ids as the catalog shows them; weights from mlx-community where there is
 | `voxcpm2` | VoxCPM2 (48 kHz) | Apache-2.0 |
 | `higgs-audio-v3` | Higgs Audio v3 TTS 4B (inline emotion tags, whisper/shout, effects) | research, **non-commercial** |
 | `voxtral-tts` | Voxtral 4B TTS | CC BY-NC 4.0, **non-commercial** |
+| `fish-s2-pro` | Fish Audio S2 Pro (8-bit MLX, `appautomaton/fishaudio-s2-pro-8bit-mlx`, 6.3 GB; mlx-speech, a runtime of its own): cloning only, inline `[tags]` | Fish Audio Research License, **non-commercial**, weights not to be passed on |
 | `qwen3-asr` | Qwen3-ASR 1.7B (8-bit): transcribes (task `transcribe`; no voice) | Apache-2.0 |
 | `qwen3-forced-aligner` | Qwen3-ForcedAligner 0.6B (8-bit, `mlx-community/Qwen3-ForcedAligner-0.6B-8bit`, 1.2 GB): the words' timings of every clip (task `align`; no voice, no generator) | Apache-2.0 |
 
@@ -41,6 +42,26 @@ espeak-ng keeps its data path in 160 bytes and ends the process when it cannot f
 `MLXLAB_HOME` the worker copies the data, 19 MB, to the temp folder once and uses it from there.) Japanese is left out: misaki[ja] builds
 pyopenjtalk from source and needs unidic's 500 MB dictionary (`python -m unidic download`). Measured on an M1 Max:
 6 s of English in 2 s on first use (the pipeline loads), then 5 s in 0.3 s; 2.5–2.8 GB peak.
+
+**Fish Audio S2 Pro** runs in its own runtime (`fish-speech`: mlx-speech 0.5.6, Python 3.13; worker
+`workers/fish_speech.py`); the speech backend stops mlx-audio's worker before it starts it and the other way round.
+It has no presets: a voice is a cloned voice of the library — a reference clip **with its exact transcript** (it
+refuses one without), in the text's language (a German text from an English reference keeps the English accent).
+Without a voice it invents one; the first sentence's clip is then the reference of the others, so a text keeps one
+speaker. The seed is fixed per sentence (the worker seeds MLX itself: mlx-speech 0.5.6's adapter drops `seed` and
+`language`, so its CLI's `--seed` does nothing for S2 Pro); the language is the text's own. Inline tags in square
+brackets steer the delivery (`[pause]`, `[excited]`, `[whisper]`, `[emphasis]`, `[professional broadcast tone]`; no
+closing tag), and `instruct` becomes such a tag in front of each sentence. Speed by stretching; no word timings (the
+aligner is mlx-audio's). Output 44.1 kHz mono. Measured on an M1 Max: 4.8 s of German in 10.6 s once loaded, 12 GB
+at the peak (physical footprint). Licence: the Fish Audio Research License — non-commercial use only, the weights
+must not be redistributed; the catalogue says `nonCommercial: true` and the licence's name, so a client can ask the
+person to confirm before the first use (docs/api.md).
+
+A voice set — reference clips with their transcripts and a `voices.yaml` (`dir`, `voices: name → language,
+reference, transcript`; other keys are left alone) — is imported into the library with `mlxlab voices import
+<voices.yaml>`: each voice becomes a cloned voice of the same name (a name the library has already is left out),
+its clip mono at its own sample rate (S2 Pro's codec is 44.1 kHz; uploads are 24 kHz). `mlxlab voices list` shows
+the library; `mlxlab run fish-s2-pro "…" --voice de-male` uses one (`--language`, `--instruct`, `--speed` too).
 
 Voice library API (worker; proxied by the hub):
 
