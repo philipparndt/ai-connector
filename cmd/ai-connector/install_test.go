@@ -194,6 +194,44 @@ func TestWinQuote(t *testing.T) {
 	}
 }
 
+// TestInstallBootstrapRetries: `launchctl bootstrap` fails while the earlier service is still ending (an update of a
+// running service); install tries again until it is gone, and gives up with the error after bootWait.
+func TestInstallBootstrapRetries(t *testing.T) {
+	setup := func(failures int) (*service, *int, *strings.Builder) {
+		s, _ := testService(t, "darwin", nil)
+		var out strings.Builder
+		tries := 0
+		s.out, s.bootWait, s.bootPoll = &out, 2*time.Second, time.Millisecond
+		s.run = func(name string, args ...string) (string, error) {
+			if name == "launchctl" && args[0] == "bootstrap" {
+				if tries++; tries <= failures {
+					return "Bootstrap failed: 5: Input/output error", errors.New("exit status 5")
+				}
+			}
+			return "", nil
+		}
+		return s, &tries, &out
+	}
+	s, tries, out := setup(3)
+	if err := s.install(); err != nil {
+		t.Fatal(err)
+	}
+	if *tries != 4 || strings.Count(out.String(), "still ending") != 1 {
+		t.Fatalf("%d tries, said %q", *tries, out.String())
+	}
+	// at once: nothing said, one try
+	s, tries, out = setup(0)
+	if err := s.install(); err != nil || *tries != 1 || out.Len() != 0 {
+		t.Fatalf("%v, %d tries, said %q", err, *tries, out.String())
+	}
+	// never: the error of the last try, after bootWait
+	s, tries, _ = setup(1 << 30)
+	s.bootWait = 20 * time.Millisecond
+	if err := s.install(); err == nil || !strings.Contains(err.Error(), "Bootstrap failed: 5") || *tries < 2 {
+		t.Fatalf("%v after %d tries", err, *tries)
+	}
+}
+
 // TestInstallReplaces: --install stops the copy that holds the lock (the PID it wrote), never one whose lock is free.
 func TestInstallReplaces(t *testing.T) {
 	type copyState struct {

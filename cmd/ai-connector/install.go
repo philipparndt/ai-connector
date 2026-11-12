@@ -65,8 +65,11 @@ type service struct {
 	holder   func() (pid int, held bool)
 	stop     func(pid int) error
 	stopWait time.Duration
-	out      io.Writer // what install says besides describe (nil: stdout)
-	runKey   bool      // Windows: installed in the Run key, not as a task
+	// bootWait: how long install keeps trying `launchctl bootstrap`, a try every bootPoll (macOS: an earlier service
+	// that is still ending makes it fail)
+	bootWait, bootPoll time.Duration
+	out                io.Writer // what install says besides describe (nil: stdout)
+	runKey             bool      // Windows: installed in the Run key, not as a task
 	// startNow starts `exe args…` in the background, apart from this console (Windows: when only the Run key could be
 	// set, which starts it at the next login — "now and at every login" starts it now this way). Tests record it.
 	startNow func(exe string, args []string) error
@@ -98,7 +101,7 @@ func newService(getenv func(string) string, kind serviceKind, lock string) (serv
 	s := service{kind: &kind, goos: runtime.GOOS, home: home, exe: exe, uid: os.Getuid(), run: func(name string, args ...string) (string, error) {
 		out, err := exec.Command(name, args...).CombinedOutput()
 		return strings.TrimSpace(string(out)), err
-	}, holder: func() (int, bool) { return lockHolder(lock) }, stop: stopProcess, stopWait: 10 * time.Second, startNow: startDetached}
+	}, holder: func() (int, bool) { return lockHolder(lock) }, stop: stopProcess, stopWait: 10 * time.Second, bootWait: 45 * time.Second, bootPoll: time.Second, startNow: startDetached}
 	for _, k := range serviceEnvKeys {
 		if v := getenv(k); v != "" {
 			s.env = append(s.env, [2]string{k, v})
@@ -383,6 +386,9 @@ func (s *service) install() error {
 			s.replaceRunning()
 		}
 		out, err := s.run(c[0], c[1:]...)
+		if err != nil && s.goos == "darwin" && i == 1 {
+			out, err = s.retryBootstrap(c, out, err)
+		}
 		if err == nil || s.goos == "darwin" && i == 0 { // bootout: an older one may not be there
 			continue
 		}
@@ -397,6 +403,23 @@ func (s *service) install() error {
 		return fmt.Errorf("%s: %v: %s", strings.Join(c, " "), err, out)
 	}
 	return nil
+}
+
+// retryBootstrap tries `launchctl bootstrap` again after it failed, for up to bootWait. `launchctl bootout` returns
+// before the earlier service is gone: launchd gives its process time to end (a worker that unloads a model takes a
+// while), and until then bootstrap of the same label fails ("Bootstrap failed: 5: Input/output error") — an update
+// of a running service ended there, with no service at all once the old process was gone.
+func (s *service) retryBootstrap(c []string, out string, err error) (string, error) {
+	said := false
+	for end := time.Now().Add(s.bootWait); err != nil && time.Now().Before(end); {
+		if !said {
+			s.printf("the earlier service is still ending: waiting for it (up to %s)\n", s.bootWait)
+			said = true
+		}
+		time.Sleep(s.bootPoll)
+		out, err = s.run(c[0], c[1:]...)
+	}
+	return out, err
 }
 
 // uninstall stops it and removes its file.
